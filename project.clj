@@ -1,4 +1,4 @@
-(defproject clj-campfire "2.0.0-SNAPSHOT"
+(defproject clj-campfire "2.0.0"
   :description "thin wrapper for Campfire's API"
   :dependencies [[org.clojure/clojure "1.3.0"]
                  [clj-http "0.2.7"]
