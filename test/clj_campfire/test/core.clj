@@ -1,7 +1,6 @@
 (ns clj-campfire.test.core
   (:use [clj-campfire.core] :reload)
-  (:use clojure.test
-        midje.sweet)
+  (:use midje.sweet)
   (:require [clj-http.client :as client]))
 
 (def my-settings
@@ -9,17 +8,16 @@
    :ssl false
    :api-token "my-token"})
 
-(deftest room-by-name-test
-  (fact
-   (room-by-name my-settings "Best room evar") => (contains {:id 42 :name "Best room evar" :locked false})
-   (provided
+(fact #'room-by-name
+  (room-by-name my-settings "Best room evar") => (contains {:id 42 :name "Best room evar" :locked false})
+  (provided
     (client/request
      {:url "http://company.campfirenow.com/rooms.json"
       :method :get
       :basic-auth ["my-token" "X"], :content-type :json :accept :json})
-          =>
-          {:status 200, :headers {"server" "nginx/0.6.35"},
-           :body "{
+    =>
+    {:status 200, :headers {"server" "nginx/0.6.35"},
+     :body "{
   \"rooms\": [
     {
       \"name\": \"Some Room\",
@@ -38,4 +36,4 @@
       \"id\": 42,
       \"membership_limit\": 50,
       \"locked\": false
-    }]}"})))
+    }]}"}))
