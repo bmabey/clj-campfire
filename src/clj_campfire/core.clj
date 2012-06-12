@@ -73,3 +73,17 @@
      (tweet (meta room) (:name room) url))
   ([settings room-name url]
      (speak settings room-name url "TweetMessage")))
+
+(defn recent-messages
+  ([settings room-name & {:keys [since-message-id limit]
+                          :or {since-message-id 0
+                               limit 100}}]
+     (-> (request settings
+                  (str "room/" (room-id settings room-name) "/recent.json")
+                  :get
+                  {:query-params {"since_message_id" since-message-id
+                                  "limit" limit}} )
+         :body
+         json/parse-string
+         (get "messages")
+         keyword-keys)))
