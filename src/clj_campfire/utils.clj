@@ -12,6 +12,8 @@
   (keyword-keys [e] "Converts keys in maps to keywords"))
 
 (extend-protocol KeywordKeys
+  nil
+  (keyword-keys [x] x)
   Object
   (keyword-keys [x] x)
   clojure.lang.PersistentVector

@@ -67,3 +67,17 @@
      (play-sound (meta room) (:name room) sound))
   ([settings room-name sound]
      (speak settings room-name sound "SoundMessage")))
+
+(defn recent-messages
+  ([settings room-name & {:keys [since-message-id limit]
+                          :or {since-message-id 0
+                               limit 100}}]
+     (-> (request settings
+                  (str "room/" (room-id settings room-name) "/recent.json")
+                  :get
+                  {:query-params {"since_message_id" since-message-id
+                                  "limit" limit}} )
+         :body
+         json/parse-string
+         (get "messages")
+         keyword-keys)))
