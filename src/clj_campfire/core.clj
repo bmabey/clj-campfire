@@ -1,7 +1,7 @@
 (ns clj-campfire.core
   (use clj-campfire.utils)
   (require [clj-http.client :as client]
-           [clj-json.core :as json]))
+           [cheshire.core :as json]))
 
 (defn- protocol [settings]
   (if (:ssl settings)
