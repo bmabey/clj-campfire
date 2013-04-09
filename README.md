@@ -2,6 +2,8 @@
 
 Very thin wrapper around 37 Signal's [Campfire](http://campfirenow.com/) API for basic communication.
 
+Forked from [leadtune/clj-campfire](https://github.com/leadtune/clj-campfire) because it seemed abandoned, and I wanted streaming support.
+
 ## Usage
 
     (def cf-settings
@@ -14,6 +16,8 @@ Very thin wrapper around 37 Signal's [Campfire](http://campfirenow.com/) API for
     (cf/message cf-settings "Room 1" "Hello")
     (cf/paste cf-settings "Room 1" "lots of information here....")
     (cf/play-sound cf-settings "Room 1" "rimshot")
+    (cf/messages cf-settings "Room 1" :limit 10)
+    (cf/stream-messages cf-settings "Room 1" (fn [m] (println m)))
 
 You can also use a room as your arguments to the speak functions:
 
