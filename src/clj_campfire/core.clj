@@ -28,9 +28,10 @@
           json/parse-string
           keyword-keys))))
 
-(defn- get-json [settings action]
+(defn- get-json 
+  [settings action & {:keys [query] :or {query {}}}]
   (with-open [client (get-client settings)]
-    (let [response (http/GET client (build-url settings action))]
+    (let [response (http/GET client (build-url settings action) :query query)]
       (-> response
           http/await
           http/string
@@ -76,3 +77,13 @@
      (play-sound (meta room) (:name room) sound))
   ([settings room-name sound]
      (speak settings room-name sound "SoundMessage")))
+
+(defn messages
+  ([room] 
+     (messages (meta room) (:name room)))
+  ([settings room-name & {:keys [limit since-message]
+                          :or {limit 100 since-message 0}}]
+     (let [options {:limit limit :since_message_id since-message}]
+       (get-json settings 
+                 (str "room/" (room-id settings room-name) "/recent.json")
+                 :query options))))
