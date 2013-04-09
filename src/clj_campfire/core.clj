@@ -8,20 +8,21 @@
     "https"
     "http"))
 
-(defn- get-client [settings]
+(defn- get-client [settings & {:keys [preemptive] :or {preemptive false}}]
   (http/create-client :auth {:type :basic 
                              :user (:api-token settings) 
-                             :password "X"}))
+                             :password "X"
+                             :preemptive preemptive}))
 
 (defn- build-url [settings action] 
   (format "%s://%s.campfirenow.com/%s"
           (protocol settings) (:sub-domain settings) action))
   
-(defn- post-json [settings action req]
+(defn- post-json [settings action & {:keys [body] :or {body {}}}]
   (with-open [client (get-client settings)]
-    (let [response (http/POST client (build-url settings action) 
+    (let [response (http/POST client (build-url settings action)
                               :headers {:Content-Type "application/json"}
-                              :body (json/generate-string (:body req)))]
+                              :body (json/generate-string body))]
       (-> response
           http/await
           http/string
@@ -53,12 +54,20 @@
    (fn [settings room-name]
      (:id (room-by-name settings room-name)))))
 
+(defn join-room
+  [settings room-name]
+  (post-json settings (str "room/" (room-id settings room-name) "join.json")))
+
+(defn leave-room
+  [settings room-name]
+  (post-json settings (str "room/" (room-id settings room-name) "leave.json")))
+
 (defn speak
   ([room msg message-type]
      (speak (meta room) (:name room) msg message-type))
   ([settings room-name msg message-type]
      (post-json settings (str "room/" (room-id settings room-name) "/speak.json")
-                {:body {:message {:body msg :type message-type}}})))
+                :body {:message {:body msg :type message-type}})))
 
 (defn message
   ([room msg]
@@ -87,3 +96,26 @@
        (get-json settings 
                  (str "room/" (room-id settings room-name) "/recent.json")
                  :query options))))
+
+;; Campfire's streaming api seems to stop sending data after
+;; a while. I'm working around it by re-connecting every 10 chunks. 
+;; Timing might be better, I found some ruby code where the developers 
+;; were re-connecting if they hadn't recieved a blank message from 
+;; campfire for 3 seconds.
+(defn stream-messages
+  "Calls handler on every message map while ignoring blank chunks"
+  [settings room-name handler]
+  (let [streaming-url (build-url (assoc settings :sub-domain "streaming")
+                                 (str "room/" 
+                                      (room-id settings room-name) 
+                                      "/live.json"))]
+    (with-open [client (get-client settings :preemptive true)]
+      (let [response (http/stream-seq client :get streaming-url)
+            chunks (take 10 (http/string response))]
+        (doseq [chunk chunks]
+          (let [message (-> chunk json/parse-string keyword-keys)]
+            (if message
+              (do (println "Recieved message: " message)
+                  (handler message)))))
+        (http/cancel response)))
+    (recur settings room-name handler)))
