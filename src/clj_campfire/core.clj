@@ -1,6 +1,6 @@
 (ns clj-campfire.core
   (use clj-campfire.utils)
-  (require [clj-http.client :as client]
+  (require [http.async.client :as http]
            [cheshire.core :as json]))
 
 (defn- protocol [settings]
@@ -8,25 +8,36 @@
     "https"
     "http"))
 
-(defn- request [settings action method options]
-  (client/request
-   (merge
-    {:url (format "%s://%s.campfirenow.com/%s"
-                  (protocol settings) (:sub-domain settings) action)
-     :method method
-     :accept :json
-     :content-type :json
-     :basic-auth [(:api-token settings) "X"]}
-    options)))
+(defn- get-client [settings & {:keys [preemptive] :or {preemptive false}}]
+  (http/create-client :auth {:type :basic 
+                             :user (:api-token settings) 
+                             :password "X"
+                             :preemptive preemptive}))
 
-(defn- post-json [settings action req]
-  (request settings action :post (update-in req [:body] json/generate-string)))
+(defn- build-url [settings action] 
+  (format "%s://%s.campfirenow.com/%s"
+          (protocol settings) (:sub-domain settings) action))
+  
+(defn- post-json [settings action & {:keys [body] :or {body {}}}]
+  (with-open [client (get-client settings)]
+    (let [response (http/POST client (build-url settings action)
+                              :headers {:Content-Type "application/json"}
+                              :body (json/generate-string body))]
+      (-> response
+          http/await
+          http/string
+          json/parse-string
+          keyword-keys))))
 
-(defn- get-json [settings action]
-  (-> (request settings action :get {})
-      :body
-      json/parse-string
-      keyword-keys))
+(defn- get-json 
+  [settings action & {:keys [query] :or {query {}}}]
+  (with-open [client (get-client settings)]
+    (let [response (http/GET client (build-url settings action) :query query)]
+      (-> response
+          http/await
+          http/string
+          json/parse-string
+          keyword-keys))))
 
 (defn rooms [settings]
   (for [room (:rooms (get-json settings "rooms.json"))]
@@ -43,12 +54,20 @@
    (fn [settings room-name]
      (:id (room-by-name settings room-name)))))
 
+(defn join-room
+  [settings room-name]
+  (post-json settings (str "room/" (room-id settings room-name) "join.json")))
+
+(defn leave-room
+  [settings room-name]
+  (post-json settings (str "room/" (room-id settings room-name) "leave.json")))
+
 (defn speak
   ([room msg message-type]
      (speak (meta room) (:name room) msg message-type))
   ([settings room-name msg message-type]
      (post-json settings (str "room/" (room-id settings room-name) "/speak.json")
-                {:body {:message {:body msg :type message-type}}})))
+                :body {:message {:body msg :type message-type}})))
 
 (defn message
   ([room msg]
@@ -67,3 +86,36 @@
      (play-sound (meta room) (:name room) sound))
   ([settings room-name sound]
      (speak settings room-name sound "SoundMessage")))
+
+(defn messages
+  ([room] 
+     (messages (meta room) (:name room)))
+  ([settings room-name & {:keys [limit since-message]
+                          :or {limit 100 since-message 0}}]
+     (let [options {:limit limit :since_message_id since-message}]
+       (get-json settings 
+                 (str "room/" (room-id settings room-name) "/recent.json")
+                 :query options))))
+
+;; Campfire's streaming api seems to stop sending data after
+;; a while. I'm working around it by re-connecting every 10 chunks. 
+;; Timing might be better, I found some ruby code where the developers 
+;; were re-connecting if they hadn't recieved a blank message from 
+;; campfire for 3 seconds.
+(defn stream-messages
+  "Calls handler on every message map while ignoring blank chunks"
+  [settings room-name handler]
+  (let [streaming-url (build-url (assoc settings :sub-domain "streaming")
+                                 (str "room/" 
+                                      (room-id settings room-name) 
+                                      "/live.json"))]
+    (with-open [client (get-client settings :preemptive true)]
+      (let [response (http/stream-seq client :get streaming-url)
+            chunks (take 10 (http/string response))]
+        (doseq [chunk chunks]
+          (let [message (-> chunk json/parse-string keyword-keys)]
+            (if message
+              (do (println "Recieved message: " message)
+                  (handler message)))))
+        (http/cancel response)))
+    (recur settings room-name handler)))
