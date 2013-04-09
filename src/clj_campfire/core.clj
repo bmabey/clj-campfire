@@ -39,6 +39,15 @@
           json/parse-string
           keyword-keys))))
 
+(defn my-info [settings]
+  (get-json settings "users/me.json"))
+
+(defn get-user [settings user-id]
+  (get-json settings (str "users/" user-id ".json")))
+
+(defn account [settings]
+  (get-json settings "account.json"))
+
 (defn rooms [settings]
   (for [room (:rooms (get-json settings "rooms.json"))]
     (with-meta room settings)))
@@ -115,7 +124,6 @@
         (doseq [chunk chunks]
           (let [message (-> chunk json/parse-string keyword-keys)]
             (if message
-              (do (println "Recieved message: " message)
-                  (handler message)))))
-        (http/cancel response)))
-    (recur settings room-name handler)))
+              (handler message))))
+        (http/cancel response))))
+  (recur settings room-name handler))
