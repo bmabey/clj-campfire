@@ -17,7 +17,7 @@ Forked from [leadtune/clj-campfire](https://github.com/leadtune/clj-campfire) be
     (cf/paste cf-settings "Room 1" "lots of information here....")
     (cf/play-sound cf-settings "Room 1" "rimshot")
     (cf/messages cf-settings "Room 1" :limit 10)
-    (cf/stream-messages cf-settings "Room 1" (fn [m] (println m)))
+    (cf/stream-messages cf-settings "Room 1" (fn [m] (println m))) ; runs forever
 
 You can also use a room as your arguments to the speak functions:
 
