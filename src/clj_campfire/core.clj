@@ -1,6 +1,6 @@
 (ns clj-campfire.core
   (use clj-campfire.utils)
-  (require [clj-http.client :as client]
+  (require [http.async.client :as http]
            [cheshire.core :as json]))
 
 (defn- protocol [settings]
@@ -8,25 +8,34 @@
     "https"
     "http"))
 
-(defn- request [settings action method options]
-  (client/request
-   (merge
-    {:url (format "%s://%s.campfirenow.com/%s"
-                  (protocol settings) (:sub-domain settings) action)
-     :method method
-     :accept :json
-     :content-type :json
-     :basic-auth [(:api-token settings) "X"]}
-    options)))
+(defn- get-client [settings]
+  (http/create-client :auth {:type :basic 
+                             :user (:api-token settings) 
+                             :password "X"}))
 
+(defn- build-url [settings action] 
+  (format "%s://%s.campfirenow.com/%s"
+          (protocol settings) (:sub-domain settings) action))
+  
 (defn- post-json [settings action req]
-  (request settings action :post (update-in req [:body] json/generate-string)))
+  (with-open [client (get-client settings)]
+    (let [response (http/POST client (build-url settings action) 
+                              :headers {:Content-Type "application/json"}
+                              :body (json/generate-string (:body req)))]
+      (-> response
+          http/await
+          http/string
+          json/parse-string
+          keyword-keys))))
 
 (defn- get-json [settings action]
-  (-> (request settings action :get {})
-      :body
-      json/parse-string
-      keyword-keys))
+  (with-open [client (get-client settings)]
+    (let [response (http/GET client (build-url settings action))]
+      (-> response
+          http/await
+          http/string
+          json/parse-string
+          keyword-keys))))
 
 (defn rooms [settings]
   (for [room (:rooms (get-json settings "rooms.json"))]
