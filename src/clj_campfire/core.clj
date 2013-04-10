@@ -1,7 +1,7 @@
 (ns clj-campfire.core
-  (use clj-campfire.utils)
-  (require [http.async.client :as http]
-           [cheshire.core :as json]))
+  (:use clj-campfire.utils)
+  (:require [http.async.client :as http]
+            [cheshire.core :as json]))
 
 (defn- protocol [settings]
   (if (:ssl settings)
@@ -65,11 +65,11 @@
 
 (defn join-room
   [settings room-name]
-  (post-json settings (str "room/" (room-id settings room-name) "join.json")))
+  (post-json settings (str "room/" (room-id settings room-name) "/join.json")))
 
 (defn leave-room
   [settings room-name]
-  (post-json settings (str "room/" (room-id settings room-name) "leave.json")))
+  (post-json settings (str "room/" (room-id settings room-name) "/leave.json")))
 
 (defn speak
   ([room msg message-type]
