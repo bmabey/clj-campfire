@@ -1,5 +1,6 @@
 (ns clj-campfire.core
-  (:use clj-campfire.utils)
+  (:use clj-campfire.utils
+        [clojure.walk :only [keywordize-keys]])
   (:require [http.async.client :as http]
             [cheshire.core :as json]))
 
@@ -27,7 +28,7 @@
           http/await
           http/string
           json/parse-string
-          keyword-keys))))
+          keywordize-keys))))
 
 (defn- get-json 
   [settings action & {:keys [query] :or {query {}}}]
@@ -37,7 +38,7 @@
           http/await
           http/string
           json/parse-string
-          keyword-keys))))
+          keywordize-keys))))
 
 (defn my-info [settings]
   (get-json settings "users/me.json"))
@@ -70,6 +71,17 @@
 (defn leave-room
   [settings room-name]
   (post-json settings (str "room/" (room-id settings room-name) "/leave.json")))
+
+(defn room-info
+  [settings room-name]
+  (get-json settings (str "room/" (room-id settings room-name) ".json")))
+
+(defn list-room
+  [settings room-name]
+  (map :name
+       (-> (room-info settings room-name)
+           :room
+           :users)))
 
 (defn speak
   ([room msg message-type]
@@ -106,24 +118,23 @@
                  (str "room/" (room-id settings room-name) "/recent.json")
                  :query options))))
 
-;; Campfire's streaming api seems to stop sending data after
-;; a while. I'm working around it by re-connecting every 10 chunks. 
-;; Timing might be better, I found some ruby code where the developers 
-;; were re-connecting if they hadn't recieved a blank message from 
-;; campfire for 3 seconds.
 (defn stream-messages
-  "Calls handler on every message map while ignoring blank chunks"
+  "Calls handler passing a lazy seq of messages as the single argument"
   [settings room-name handler]
   (let [streaming-url (build-url (assoc settings :sub-domain "streaming")
                                  (str "room/" 
                                       (room-id settings room-name) 
                                       "/live.json"))]
     (with-open [client (get-client settings :preemptive true)]
-      (let [response (http/stream-seq client :get streaming-url)
-            chunks (take 10 (http/string response))]
-        (doseq [chunk chunks]
-          (let [message (-> chunk json/parse-string keyword-keys)]
-            (if message
-              (handler message))))
-        (http/cancel response))))
-  (recur settings room-name handler))
+      (let [response (http/stream-seq client :get streaming-url :timeout -1)]
+        (handler
+         (filter 
+          identity
+          (map
+           (fn [chunk]
+             (-> chunk
+                 json/parse-string
+                 keywordize-keys))
+           (http/string response))))
+        (http/cancel response)))))
+
