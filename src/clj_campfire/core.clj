@@ -128,13 +128,7 @@
     (with-open [client (get-client settings :preemptive true)]
       (let [response (http/stream-seq client :get streaming-url :timeout -1)]
         (handler
-         (filter 
-          identity
-          (map
-           (fn [chunk]
-             (-> chunk
-                 json/parse-string
-                 keywordize-keys))
-           (http/string response))))
+         (filter identity
+                 (map (fn [chunk] (-> chunk json/parse-string keywordize-keys))
+                      (http/string response))))
         (http/cancel response)))))
-
