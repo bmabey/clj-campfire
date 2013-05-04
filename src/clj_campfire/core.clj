@@ -67,3 +67,9 @@
      (play-sound (meta room) (:name room) sound))
   ([settings room-name sound]
      (speak settings room-name sound "SoundMessage")))
+
+(defn tweet
+  ([room url]
+     (tweet (meta room) (:name room) url))
+  ([settings room-name url]
+     (speak settings room-name url "TweetMessage")))
