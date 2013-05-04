@@ -2,6 +2,8 @@
 
 Very thin wrapper around 37 Signal's [Campfire](http://campfirenow.com/) API for basic communication.
 
+
+
 ## Usage
 
     (def cf-settings
@@ -28,14 +30,14 @@ You can also use a room as your arguments to the speak functions:
 Leiningen:
 
     :dependencies
-      [[clj-campfire "1.0.0"] ...]
+      [[clj-campfire "2.1.0"] ...]
 
 Maven:
 
     <dependency>
       <groupId>clj-campfire</groupId>
       <artifactId>clj-campfire</artifactId>
-      <version>1.0.0</version>
+      <version>2.1.0</version>
     </dependency>
 
 ## License
