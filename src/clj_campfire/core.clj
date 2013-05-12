@@ -24,29 +24,13 @@
   (format "%s://%s.campfirenow.com/%s"
           (protocol settings) (:sub-domain settings) action))
 
-(defn- post-json [settings action & {:keys [body] :or {body {}}}]
-  (with-open [client (get-client settings)]
+(defn- post-json [settings action & {:keys [body preemptive] 
+                                     :or {body (json/generate-string {}) 
+                                          preemptive false}}]
+  (with-open [client (get-client settings :preemptive preemptive)]
     (let [response (http/POST client (build-url settings action)
                               :headers {:Content-Type "application/json"}
-                              :body (json/generate-string body))]
-      (-> response
-          http/await
-          http/string
-          json/parse-string
-          keywordize-keys))))
-
-;https://github.com/neotyk/http.async.client/blob/development/test/http/async/client/test.clj
-; (deftest test-post-file-body
-;   (let [resp (POST *client* "http://localhost:8123/body-str"
-;                    :body (File. "test-resources/test.txt"))]
-;     (is (false? (empty? (headers resp))))
-;     (is (= "TestContent" (string resp)))))
-
-(defn- post-json-with-file [settings action file & {:keys [body] :or {body {}}}]
-  (println "baz")
-  (with-open [client (get-client settings)]
-    (let [response (http/POST client (build-url settings action)
-                              :body (File. file))]
+                              :body body)]
       (-> response
           http/await
           http/string
@@ -107,30 +91,23 @@
            :users)))
 
 (defn upload
+  ([room file] (upload (meta room) (:name room) file))
   ([settings room-name file]
-     (println "bar1")
-     ; (post-json settings (str "room/" (room-id settings room-name) "/speak.json")
-     ;            :body {:message {:body file :type "TextMessage"}})
-     ; (post-json settings (str "room/" (room-id settings room-name) "/speak.json")
-     ;            :body {:message {:body "msg" :type "TextMessage"}})
-     (post-json-with-file settings (str "room/" (room-id settings room-name) "/uploads.json")
-                file :body {:upload {:name file}})
-     (println "bar2")
-  ))
-
-; (defn upload
-;   ([room file]
-;      (upload (meta room) (:name room) file))
-;   ([settings room-name file]
-;      (post-json settings (str "room/" (room-id settings room-name) "/speak.json")
-;                 :body {:message {:body file :type "TextMessage"}})))
+     (post-json settings 
+                (str "room/" (room-id settings room-name) "/uploads.json")
+                :body [{:type      :file
+                        :name      "upload"
+                        :file      (File. file)
+                        :mime-type "application/pdf"}]
+                :preemptive true)))
 
 (defn speak
   ([room msg message-type]
      (speak (meta room) (:name room) msg message-type))
   ([settings room-name msg message-type]
      (post-json settings (str "room/" (room-id settings room-name) "/speak.json")
-                :body {:message {:body msg :type message-type}})))
+                :body (json/generate-string 
+                       {:message {:body msg :type message-type}}))))
 
 (defn message
   ([room msg]
