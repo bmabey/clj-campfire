@@ -2,7 +2,12 @@
   (:use clj-campfire.utils
         [clojure.walk :only [keywordize-keys]])
   (:require [http.async.client :as http]
-            [cheshire.core :as json]))
+            [cheshire.core :as json])
+  (:import
+             (java.io File
+                      IOException)
+  )
+)
 
 (defn- protocol [settings]
   (if (:ssl settings)
@@ -10,15 +15,15 @@
     "http"))
 
 (defn- get-client [settings & {:keys [preemptive] :or {preemptive false}}]
-  (http/create-client :auth {:type :basic 
-                             :user (:api-token settings) 
+  (http/create-client :auth {:type :basic
+                             :user (:api-token settings)
                              :password "X"
                              :preemptive preemptive}))
 
-(defn- build-url [settings action] 
+(defn- build-url [settings action]
   (format "%s://%s.campfirenow.com/%s"
           (protocol settings) (:sub-domain settings) action))
-  
+
 (defn- post-json [settings action & {:keys [body] :or {body {}}}]
   (with-open [client (get-client settings)]
     (let [response (http/POST client (build-url settings action)
@@ -30,7 +35,25 @@
           json/parse-string
           keywordize-keys))))
 
-(defn- get-json 
+;https://github.com/neotyk/http.async.client/blob/development/test/http/async/client/test.clj
+; (deftest test-post-file-body
+;   (let [resp (POST *client* "http://localhost:8123/body-str"
+;                    :body (File. "test-resources/test.txt"))]
+;     (is (false? (empty? (headers resp))))
+;     (is (= "TestContent" (string resp)))))
+
+(defn- post-json-with-file [settings action file & {:keys [body] :or {body {}}}]
+  (println "baz")
+  (with-open [client (get-client settings)]
+    (let [response (http/POST client (build-url settings action)
+                              :body (File. file))]
+      (-> response
+          http/await
+          http/string
+          json/parse-string
+          keywordize-keys))))
+
+(defn- get-json
   [settings action & {:keys [query] :or {query {}}}]
   (with-open [client (get-client settings)]
     (let [response (http/GET client (build-url settings action) :query query)]
@@ -83,6 +106,25 @@
            :room
            :users)))
 
+(defn upload
+  ([settings room-name file]
+     (println "bar1")
+     ; (post-json settings (str "room/" (room-id settings room-name) "/speak.json")
+     ;            :body {:message {:body file :type "TextMessage"}})
+     ; (post-json settings (str "room/" (room-id settings room-name) "/speak.json")
+     ;            :body {:message {:body "msg" :type "TextMessage"}})
+     (post-json-with-file settings (str "room/" (room-id settings room-name) "/uploads.json")
+                file :body {:upload {:name file}})
+     (println "bar2")
+  ))
+
+; (defn upload
+;   ([room file]
+;      (upload (meta room) (:name room) file))
+;   ([settings room-name file]
+;      (post-json settings (str "room/" (room-id settings room-name) "/speak.json")
+;                 :body {:message {:body file :type "TextMessage"}})))
+
 (defn speak
   ([room msg message-type]
      (speak (meta room) (:name room) msg message-type))
@@ -109,12 +151,12 @@
      (speak settings room-name sound "SoundMessage")))
 
 (defn messages
-  ([room] 
+  ([room]
      (messages (meta room) (:name room)))
   ([settings room-name & {:keys [limit since-message]
                           :or {limit 100 since-message 0}}]
      (let [options {:limit limit :since_message_id since-message}]
-       (get-json settings 
+       (get-json settings
                  (str "room/" (room-id settings room-name) "/recent.json")
                  :query options))))
 
@@ -122,8 +164,8 @@
   "Calls handler passing a lazy seq of messages as the single argument"
   [settings room-name handler]
   (let [streaming-url (build-url (assoc settings :sub-domain "streaming")
-                                 (str "room/" 
-                                      (room-id settings room-name) 
+                                 (str "room/"
+                                      (room-id settings room-name)
                                       "/live.json"))]
     (with-open [client (get-client settings :preemptive true)]
       (let [response (http/stream-seq client :get streaming-url :timeout -1)]
