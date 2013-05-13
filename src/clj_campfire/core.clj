@@ -98,7 +98,7 @@
                 :body [{:type      :file
                         :name      "upload"
                         :file      (File. file)
-                        :mime-type "application/pdf"}]
+                        }]  ; :mime-type "application/octet-stream"}]
                 :preemptive true)))
 
 (defn speak
