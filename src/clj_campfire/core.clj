@@ -3,11 +3,7 @@
         [clojure.walk :only [keywordize-keys]])
   (:require [http.async.client :as http]
             [cheshire.core :as json])
-  (:import
-             (java.io File
-                      IOException)
-  )
-)
+  (:import (java.io File IOException)))
 
 (defn- protocol [settings]
   (if (:ssl settings)
