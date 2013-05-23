@@ -130,7 +130,7 @@
 
 (defn recent-messages
   ([room]
-     (messages (meta room) (:name room)))
+     (recent-messages (meta room) (:name room)))
   ([settings room-name & {:keys [limit since-message-id]
                           :or {limit 100 since-message-id 0}}]
      (let [options {:limit limit 
