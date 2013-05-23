@@ -32,14 +32,14 @@ You can also use a room as your arguments to the speak functions:
 Leiningen:
 
     :dependencies
-      [[clj-campfire "2.1.0"] ...]
+      [[clj-campfire "2.2.0"] ...]
 
 Maven:
 
     <dependency>
       <groupId>clj-campfire</groupId>
       <artifactId>clj-campfire</artifactId>
-      <version>2.1.0</version>
+      <version>2.2.0</version>
     </dependency>
 
 ## License
