@@ -1,23 +1,35 @@
 (ns clj-campfire.test.core
   (:use [clj-campfire.core] :reload)
   (:use midje.sweet)
-  (:require [clj-http.client :as client]))
+  (:require [http.async.client :as http]))
 
 (def my-settings
   {:sub-domain "company"
    :ssl false
    :api-token "my-token"})
 
-(fact #'room-by-name
+(defprotocol Closeable
+  (close [x]))
+
+(def fake-client
+  (reify
+    Closeable
+    (close [_])
+    Object
+    (toString [_] "fake client")))
+
+
+
+
+(fact "#'room-by-name"
   (room-by-name my-settings "Best room evar") => (contains {:id 42 :name "Best room evar" :locked false})
   (provided
-    (client/request
-     {:url "http://company.campfirenow.com/rooms.json"
-      :method :get
-      :basic-auth ["my-token" "X"], :content-type :json :accept :json})
-    =>
-    {:status 200, :headers {"server" "nginx/0.6.35"},
-     :body "{
+      (http/create-client :auth {:type :basic
+                                 :user "my-token"
+                                 :password "X"
+                                 :preemptive false}) => fake-client
+      (http/string (http/await (http/GET fake-client "http://company.campfirenow.com/rooms.json" :query {}))) =>
+ "{
   \"rooms\": [
     {
       \"name\": \"Some Room\",
@@ -36,4 +48,4 @@
       \"id\": 42,
       \"membership_limit\": 50,
       \"locked\": false
-    }]}"}))
+    }]}"))
