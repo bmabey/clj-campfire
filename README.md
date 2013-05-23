@@ -3,6 +3,7 @@
 Very thin wrapper around 37 Signal's [Campfire](http://campfirenow.com/) API for basic communication.
 
 
+
 ## Usage
 
     (def cf-settings
