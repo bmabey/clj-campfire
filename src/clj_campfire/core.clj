@@ -93,8 +93,7 @@
                 (str "room/" (room-id settings room-name) "/uploads.json")
                 :body [{:type      :file
                         :name      "upload"
-                        :file      (File. file)
-                        }]  ; :mime-type "application/octet-stream"}]
+                        :file      (File. file)}]
                 :preemptive true)))
 
 (defn speak
@@ -109,13 +108,13 @@
   ([room msg]
      (message (meta room) (:name room) msg))
   ([settings room-name msg]
-      (speak settings room-name msg "TextMessage")))
+     (speak settings room-name msg "TextMessage")))
 
 (defn paste
   ([room msg]
      (paste (meta room) (:name room) msg))
   ([settings room-name msg]
-      (speak settings room-name msg "PasteMessage")))
+     (speak settings room-name msg "PasteMessage")))
 
 (defn play-sound
   ([room sound]
@@ -123,12 +122,19 @@
   ([settings room-name sound]
      (speak settings room-name sound "SoundMessage")))
 
-(defn messages
+(defn tweet
+  ([room url]
+     (tweet (meta room) (:name room) url))
+  ([settings room-name url]
+     (speak settings room-name url "TweetMessage")))
+
+(defn recent-messages
   ([room]
      (messages (meta room) (:name room)))
-  ([settings room-name & {:keys [limit since-message]
-                          :or {limit 100 since-message 0}}]
-     (let [options {:limit limit :since_message_id since-message}]
+  ([settings room-name & {:keys [limit since-message-id]
+                          :or {limit 100 since-message-id 0}}]
+     (let [options {:limit limit 
+                    :since_message_id since-message-id}]
        (get-json settings
                  (str "room/" (room-id settings room-name) "/recent.json")
                  :query options))))
