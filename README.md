@@ -21,7 +21,7 @@ Very thin wrapper around 37 Signal's [Campfire](http://campfirenow.com/) API for
 
 You can also use a room as your arguments to the speak functions:
 
-    (def my-room (cf/room-by-name "Room 2"))
+    (def my-room (cf/room-by-name cf-settings "Room 2"))
     (cf/message my-room "Hello")
 
 
